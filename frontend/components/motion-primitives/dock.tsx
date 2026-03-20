@@ -1,5 +1,5 @@
 "use client";
-import { bacasime, arizonia } from "@/src/app/fonts";
+import { bacasime, arizonia } from "@/styles/fonts";
 import {
   motion,
   MotionValue,

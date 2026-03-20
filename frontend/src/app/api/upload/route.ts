@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   await s3Client.send(
     new PutObjectCommand({
       Bucket: process.env.AWS_S3_BUCKET_NAME!,
-      Key: "uploads/" + file.name,
+      Key: "history/" + file.name,
       Body: buffer,
       ContentType: file.type,
     }),
