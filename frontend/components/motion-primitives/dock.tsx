@@ -22,7 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const DOCK_HEIGHT = 128;
-const DEFAULT_MAGNIFICATION = 80;
+const DEFAULT_MAGNIFICATION = 90;
 const DEFAULT_DISTANCE = 150;
 const DEFAULT_PANEL_HEIGHT = 64;
 
@@ -34,6 +34,7 @@ export type DockProps = {
   magnification?: number;
   spring?: SpringOptions;
   orientation?: "horizontal" | "vertical";
+  text?: string;
 };
 
 export type DockItemProps = {
@@ -41,6 +42,7 @@ export type DockItemProps = {
   children: React.ReactNode;
   onClick?: () => void;
   text?: string;
+  isActive?: boolean;
 };
 
 export type DockLabelProps = {
@@ -132,7 +134,7 @@ function Dock({
           mousePos.set(Infinity);
         }}
         className={cn(
-          "mx-auto flex w-fit gap-4 border-gray-200 rounded-2xl bg-white shadow-lg dark:bg-neutral-900",
+          "mx-auto flex w-fit gap-4 border-gray-200 rounded-2xl bg-white shadow-lg ",
           isVertical ? "my-auto flex-col py-4" : "px-4",
           className,
         )}
@@ -227,6 +229,8 @@ function DockItem({ children, className, onClick, text }: DockItemProps) {
 }
 
 function DockLabel({ children, className, ...rest }: DockLabelProps) {
+  const { orientation } = useDock();
+  const isVertical = orientation === "vertical";
   const restProps = rest as Record<string, unknown>;
   const isHovered = restProps["isHovered"] as MotionValue<number>;
   const [isVisible, setIsVisible] = useState(false);
@@ -248,11 +252,13 @@ function DockLabel({ children, className, ...rest }: DockLabelProps) {
           exit={{ opacity: 0, y: 0 }}
           transition={{ duration: 0.2 }}
           className={cn(
-            `absolute ${bacasime.className} right-0 whitespace-pre rounded-md border border-gray-200 bg-gray-100 px-2 py-0.5 text-xs text-neutral-700 dark:border-neutral-900 dark:bg-neutral-800 dark:text-white shadow-lg`,
+            `absolute ${bacasime.className} whitespace-pre rounded-md border border-gray-200 bg-gray-100 px-2 py-0.5 text-xs text-neutral-700 dark:border-neutral-900 dark:bg-neutral-800 dark:text-white shadow-lg`,
+            isVertical
+              ? "right-15 ml-2 top-1/2 -translate-y-1/2"
+              : "bottom-full mb-2 left-1/2 -translate-x-1/2",
             className,
           )}
           role="tooltip"
-          style={{ x: "-50%" }}
         >
           {children}
         </motion.div>

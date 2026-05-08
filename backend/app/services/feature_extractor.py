@@ -1,27 +1,22 @@
-import torch
-import torchvision.models as models
+from transformers import CLIPImageProcessor, CLIPModel
 from torchvision import transforms
+import torch
 '''
-For feature extraction, I will be using ResNet-50
+For feature extraction, I will be using CLIP instead of ResNet to get a better
+semantic relationshiop between words and images (really good when I want to 
+prompt)!
 '''
 
-class FeatureExtractor(torch.nn.Module):
+class FeatureExtractor():
     def __init__(self):
-        super(FeatureExtractor, self).__init__()
-        self.resnet = models.resnet50(weights = models.ResNet50_Weights.DEFAULT)
-        #I actually just want the features not classification
-        self.resnet = torch.nn.Sequential(*list(self.resnet.children())[:-1])
-        self.resnet.eval()
-        self.transform = transforms.Compose([
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-])
+        self.model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
+        self.processor = CLIPImageProcessor.from_pretrained("openai/clip-vit-base-patch32")
 
-    def forward(self, x):
-        x = self.transform(x)
-        #here transform outputs (3,224,224)
+    #list of 5 images from onboarding
+    def forward(self, images):
+        #CLIP Image Processor has its own image transformations so no need to create my own custom transforms
+        processed_images = self.processor(images, return_tensors="pt")
         with torch.no_grad():
-            features = self.resnet(x)
-            #resnet outputs a shape of (1,2048,1,1)
-        #squeeze removes useless dimenstions so (2048,)
-        return features.squeeze(-1).squeeze(-1).numpy() 
-    
+            embeddings = self.model.get_image_features(**processed_images).pooler_output
+        embeddings /= embeddings.norm(dim=-1, keepdim=True)
+        return embeddings.numpy()

@@ -1,50 +1,45 @@
 "use client";
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import { bacasime } from "../styles/fonts";
 import Image from "next/image";
-import { read } from "fs";
-
-interface UploadedFile {
-  file: File;
-  dataURL: string;
-}
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { setOnboarding } from "./set-onboarding";
 
 function DragDropFiles() {
-  const [uploadedFiles, setUploadedFiles] = React.useState<UploadedFile[]>([]);
+  const [uploadedFiles, setUploadedFiles] = React.useState<File[]>([]);
   const [uploading, setUploading] = React.useState(false);
   const [errors, setErrors] = React.useState<string[]>([]);
+  const router = useRouter();
+  const [session, setSession] = React.useState<any>(null);
+  const supabase = createClient();
+
+  useEffect(() => {
+    const get_session = async () => {
+      const data = await supabase.auth.getSession();
+      setSession(data?.data?.session);
+    };
+
+    get_session();
+  }, []);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     setErrors([]);
-
     acceptedFiles.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const dataURL = reader.result as string;
-        setUploadedFiles((prev) => [
-          ...prev,
-          { file, dataURL: reader.result as string },
-        ]);
-      };
-      reader.readAsDataURL(file);
+      setUploadedFiles((prev) => [...prev, file]);
     });
   }, []);
 
-  const {
-    isDragActive,
-    acceptedFiles,
-    fileRejections,
-    getRootProps,
-    getInputProps,
-  } = useDropzone({
-    maxFiles: 5,
-    accept: {
-      "image/*": [".jpeg", ".jpg", ".png"],
-    },
-    /* call onDrop every time a file is dropped */
-    onDrop,
-  });
+  const { isDragActive, fileRejections, getRootProps, getInputProps } =
+    useDropzone({
+      maxFiles: 5,
+      accept: {
+        "image/*": [".jpeg", ".jpg", ".png"],
+      },
+      /* call onDrop every time a file is dropped */
+      onDrop,
+    });
 
   const rejectionErrors = fileRejections.flatMap(({ file, errors }) =>
     errors.map((e) => `File ${file.name} rejected: ${e.message}`),
@@ -57,21 +52,41 @@ function DragDropFiles() {
     setUploading(true);
     // Send it to the backend '/api/onboard' route
     try {
-      const img_url_list = uploadedFiles.map((f) => f.dataURL);
-      console.log("Uploading files:", img_url_list);
+      if (!session) {
+        setErrors(["User not authenticated. Please log in again."]);
+        return;
+      }
+      const formData = new FormData();
+      uploadedFiles.forEach((file) => {
+        formData.append("images", file);
+      });
+
       const response = await fetch("http://localhost:8000/extract-features/", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          authorization: `Bearer ${session?.access_token}`,
         },
-
-        body: JSON.stringify(img_url_list),
+        body: formData,
       });
       const result = await response.json();
-      if (result.success) {
+      console.log(result);
+      if (result) {
         alert("File uploaded successfully!");
         setUploadedFiles([]);
+        try {
+          const onboardingResult = await setOnboarding();
+          if (!onboardingResult.success) {
+            console.error(
+              "Onboarding update failed:",
+              onboardingResult.message,
+            );
+          }
+        } catch (error) {
+          console.error("Error during onboarding update:", error);
+        }
+        router.push("/");
       } else {
+        console.log(result.error);
         setErrors(["Failed to upload file."]);
       }
     } catch (error) {
@@ -85,7 +100,7 @@ function DragDropFiles() {
 
   return (
     <div className="flex min-h-screen items-center justify-center">
-      <div className="bg-white shadow-sm rounded-lg h-90 w-96 flex flex-col items-center justify-center gap-4">
+      <div className="bg-white rounded-lg h-90 w-96 flex flex-col items-center justify-center gap-4">
         {/* Drop Feature Here! */}
         <div
           {...getRootProps({ className: "dropzone" })}
@@ -93,17 +108,23 @@ function DragDropFiles() {
         >
           <input {...getInputProps()}></input>
           {uploadedFiles.length > 0 ? (
-            <div className="grid grid-cols-2 gap-2 p-2">
-              {uploadedFiles.map(({ dataURL, file }) => (
-                <Image
-                  key={file.name}
-                  src={dataURL}
-                  alt={file.name}
-                  width={80}
-                  height={80}
-                  className="object-contain rounded"
-                />
-              ))}
+            <div className="w-80 h-60 overflow-y-auto no-scrollbar">
+              <div className="grid grid-cols-1 gap-2 p-2">
+                {uploadedFiles.map((file) => (
+                  <div key={file.name} className="flex flex-row text-start ">
+                    <Image
+                      src={URL.createObjectURL(file)}
+                      alt={file.name}
+                      width={60}
+                      height={60}
+                      className="rounded"
+                    />
+                    <p className="ml-4 text-sm text-muted-foreground">
+                      {file.name}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
           ) : (
             <div

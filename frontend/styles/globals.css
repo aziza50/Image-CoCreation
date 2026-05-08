@@ -2,3 +2,6 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+@utility no-scrollbar {
+  @apply [scrollbar-width:none] [&::-webkit-scrollbar]:hidden;
+}
